@@ -19,7 +19,7 @@ mongodb.connect('mongodb://localhost:27017', (err, client) => {
 app.get('/', function(req, res) {
     db.collection('cmdb').find().toArray((err, result) => {
         if (err) return console.log(err);
-        res.render('index.ejs', {cms: result});
+        res.render('index.ejs', {cms: result, query:{year:"", year_to:""}});
     });
 })
 

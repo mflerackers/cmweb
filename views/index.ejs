@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CMDB</title>
+</head>
+<body>
+    <form action="/" method="POST">
+        <input type="text" placeholder="year from" name="year" value=<%= query.year %>>
+        <input type="text" placeholder="year until" name="year_to" value=<%= query.year_to %>>
+        <button type="submit">Submit</button>
+    </form>
+    
+    <ul class="cms">
+        <% for(var i=0; i<cms.length; i++) {%>
+        <li class="cm">
+            <a href="/cm/<%= cms[i].name %>">
+            <span><%= cms[i].name %></span>
+            <span><%= cms[i].title %></span>
+            </a>
+        </li>
+        <% } %>
+    </ul>
+</body>
+</html>

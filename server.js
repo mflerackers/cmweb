@@ -30,6 +30,13 @@ app.get('/cm/:name', function(req, res) {
     });
 })
 
+app.get('/count', function(req, res) {
+    db.collection('cmdb').aggregate([{$unwind:"$"+req.query.group},{$sortByCount:"$"+req.query.group}]).toArray((err, result) => {
+        if (err) return console.log(err);
+        res.render('count.ejs', {cms: result, query:req.query});
+    });
+})
+
 app.post('/', (req, res) => {
     console.log(req.body);
     let query = {};

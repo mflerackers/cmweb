@@ -6,19 +6,21 @@
 </head>
 <body>
     <a href="/">index</a> <a href="/count?group=category">count</a>
-    <form action="/" method="POST">
-        <input type="text" placeholder="year from" name="year" value=<%= query.year %>>
-        <input type="text" placeholder="year until" name="year_to" value=<%= query.year_to %>>
+    <form action="/count" method="GET">
+        <select name="group">
+        <option>category</option>
+        <option>place</option>
+        <option>product</option>
+        <option>product company</option>
+        </select>
         <button type="submit">Submit</button>
     </form>
     
     <ul class="cms">
         <% for(var i=0; i<cms.length; i++) {%>
         <li class="cm">
-            <a href="/cm/<%= cms[i].name %>">
-            <span><%= cms[i].name %></span>
-            <span><%= cms[i].title %></span>
-            </a>
+            <span><%= cms[i]._id %></span>
+            <span><%= cms[i].count %></span>
         </li>
         <% } %>
     </ul>

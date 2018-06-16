@@ -8,10 +8,14 @@
     <a href="/">index</a> <a href="/count?group=category">count</a>
     <form action="/count" method="GET">
         <select name="group">
-        <option>category</option>
-        <option>place</option>
-        <option>product</option>
-        <option>product company</option>
+        <option <% if (query.group=="category") { %>selected<% } %>>category</option>
+        <option <% if (query.group=="place") { %>selected<% } %>>place</option>
+        <option <% if (query.group=="product") { %>selected<% } %>>product</option>
+        <option <% if (query.group=="product company") { %>selected<% } %>>product company</option>
+        </select>
+        <select name="group2">
+        <option <% if (query.group2=="") { %>selected<% } %>></option>
+        <option <% if (query.group2=="gender") { %>selected<% } %>>gender</option>
         </select>
         <button type="submit">Submit</button>
     </form>
@@ -19,7 +23,8 @@
     <ul class="cms">
         <% for(var i=0; i<cms.length; i++) {%>
         <li class="cm">
-            <span><%= cms[i]._id %></span>
+            <span><%= cms[i].gender %></span>
+            <span><%= cms[i].group %></span>
             <span><%= cms[i].count %></span>
         </li>
         <% } %>

@@ -31,10 +31,31 @@ app.get('/cm/:name', function(req, res) {
 })
 
 app.get('/count', function(req, res) {
-    db.collection('cmdb').aggregate([{$unwind:"$"+req.query.group},{$sortByCount:"$"+req.query.group}]).toArray((err, result) => {
-        if (err) return console.log(err);
-        res.render('count.ejs', {cms: result, query:req.query});
-    });
+    if (req.query.group2 == "") {
+        db.collection('cmdb').aggregate([
+            {$project:{_id:1,group:"$"+req.query.group}},
+            {$unwind:"$group"},
+            {$sortByCount:"$group"},
+            {$project:{group:"$_id", count:1}}
+        ]).toArray((err, result) => {
+            if (err) return console.log(err);
+            res.render('count.ejs', {cms: result, query:req.query});
+        });
+    }
+    else {
+        db.collection('cmdb').aggregate([
+            {$project:{_id:1,gender:"$person.gender",group:"$"+req.query.group}},
+            {$unwind:"$gender"},
+            {$unwind:"$gender"},
+            {$unwind:"$group"},
+            {$sortByCount:{$mergeObjects:{"gender":"$gender","group":"$group"}}},
+            {$sort:{"_id.gender":1, count:-1}},
+            {$project:{gender:"$_id.gender",group:"$_id.group",count:1}}
+        ]).toArray((err, result) => {
+            if (err) return console.log(err);
+            res.render('count.ejs', {cms: result, query:req.query});
+        });
+    }
 })
 
 app.post('/', (req, res) => {

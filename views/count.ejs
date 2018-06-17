@@ -8,6 +8,7 @@
     <a href="/">index</a> <a href="/count?group=category">count</a>
     <form action="/count" method="GET">
         <select name="group">
+        <option <% if (query.group=="") { %>selected<% } %>></option>
         <option <% if (query.group=="category") { %>selected<% } %>>category</option>
         <option <% if (query.group=="place") { %>selected<% } %>>place</option>
         <option <% if (query.group=="product") { %>selected<% } %>>product</option>
@@ -30,6 +31,7 @@
         <% for(var i=0; i<cms.length; i++) {%>
         <li class="cm">
             <span><%= cms[i].group2 %></span>
+            <span><%= cms[i].group3 %></span>
             <span><%= cms[i].group %></span>
             <span><%= cms[i].count %></span>
         </li>

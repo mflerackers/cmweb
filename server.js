@@ -85,22 +85,43 @@ app.get('/count', function(req, res) {
         }
     }
     else {
-        db.collection('cmdb').aggregate([
-            {$unwind:"$person"},
-            {$project: {
-                _id:"$person.name", 
-                gender:"$person.gender",
-                age:"$person.age"
-            }},
-            {$unwind:"$gender"},
-            {$unwind:"$age"},
-            {$sortByCount: {$mergeObjects:{gender:"$gender", age:"$age"}}},
-            {$sort:{"_id.gender":1, "count":-1}},
-            {$project:{group2:"$_id.gender",group:"$_id.age",count:1}}
-        ]).toArray((err, result) => {
-            if (err) return console.log(err);
-            res.render('count.ejs', {cms: result, query:req.query});
-        });
+        if (req.query.group2 == "" || req.query.group3 == "" || req.query.group2 == req.query.group3) {
+            let group = req.query.group2 == req.query.group3 ? 
+                req.query.group2 :
+                req.query.group2 + req.query.group3;
+            db.collection('cmdb').aggregate([
+                {$unwind:"$person"},
+                {$project: {
+                    _id:"$person.name", 
+                    group:"$person."+group
+                }},
+                {$unwind:"$group"},
+                {$sortByCount: "$group"},
+                {$sort:{"count":-1}},
+                {$project:{group:"$_id",count:1}}
+            ]).toArray((err, result) => {
+                if (err) return console.log(err);
+                res.render('count.ejs', {cms: result, query:req.query});
+            });
+        }
+        else {
+            db.collection('cmdb').aggregate([
+                {$unwind:"$person"},
+                {$project: {
+                    _id:"$person.name", 
+                    group2:"$person."+req.query.group2,
+                    group3:"$person."+req.query.group3
+                }},
+                {$unwind:"$group2"},
+                {$unwind:"$group3"},
+                {$sortByCount: {$mergeObjects:{group2:"$group2", group3:"$group3"}}},
+                {$sort:{"_id.group2":1, "count":-1}},
+                {$project:{group2:"$_id.group2",group:"$_id.group3",count:1}}
+            ]).toArray((err, result) => {
+                if (err) return console.log(err);
+                res.render('count.ejs', {cms: result, query:req.query});
+            });
+        }
     }
 })
 

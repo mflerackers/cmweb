@@ -86,25 +86,12 @@ app.get('/count', function(req, res) {
     }
     else {
         if (req.query.group4) {
-            var map = function() {
-                for (var i in this.person) {
-                    if (!this.person[i].emotion)
-                        continue;
-                    let emotion = this.person[i].emotion;
-                    if (Array.isArray(emotion)) {
-                        emotion.forEach(function(v){
-                            emit(v, 1);
-                        });
-                    }
-                    else {
-                        emit(emotion, 1);
-                    }
-                }
-                for (var j in this.scene) {
-                    for (var k in this.scene[j].person) {
-                        if (!this.scene[j].person[k].emotion)
+            if (req.query.group2 == "" && req.query.group3 == "") {
+                var map = function() {
+                    for (var i in this.person) {
+                        if (!this.person[i].emotion)
                             continue;
-                        let emotion = this.scene[j].person[k].emotion;
+                        let emotion = this.person[i].emotion;
                         if (Array.isArray(emotion)) {
                             emotion.forEach(function(v){
                                 emit(v, 1);
@@ -114,21 +101,84 @@ app.get('/count', function(req, res) {
                             emit(emotion, 1);
                         }
                     }
+                    for (var j in this.scene) {
+                        for (var k in this.scene[j].person) {
+                            if (!this.scene[j].person[k].emotion)
+                                continue;
+                            let emotion = this.scene[j].person[k].emotion;
+                            if (Array.isArray(emotion)) {
+                                emotion.forEach(function(v){
+                                    emit(v, 1);
+                                });
+                            }
+                            else {
+                                emit(emotion, 1);
+                            }
+                        }
+                    }
                 }
+                
+                var reduce = function(key, values) {
+                    return Array.sum(values);
+                }
+                
+                db.collection('cmdb').mapReduce(map, reduce, {out:{ inline: 1 }},
+                    function (err, result) {
+                        if (err) return console.log(err);
+                    let projection = [];
+                    projection = result.map(v => ({group4:v._id, count:v.value}));
+                    projection.sort((v1,v2)=>v2.count-v1.count);
+                    res.render('count.ejs', {cms: projection, query:req.query});
+                });
             }
-            
-            var reduce = function(key, values) {
-                return Array.sum(values);
+            else if (req.query.group2 == "" || req.query.group3 == "" || req.query.group2 == req.query.group3) {
+                let groupName = req.query.group2 == req.query.group3 ? 
+                    req.query.group2 : 
+                    req.query.group2 + req.query.group3;
+                var map = function() {
+                    let forEach = function(v, f) {
+                        if (Array.isArray(v))
+                            v.forEach(v=>f(v));
+                        else
+                            f(v);
+                    }
+                    let groupMap = {};
+                    for (var i in this.person) {
+                        let group = this.person[i][groupName];
+                        groupMap[this.person[i].name] = group;
+                        if (!this.person[i].emotion)
+                            continue;
+                        let emotion = this.person[i].emotion;
+                        forEach(emotion, function(emotion){
+                            emit({group:group, emotion:emotion}, 1);
+                        });
+                    }
+                    for (var j in this.scene) {
+                        for (var k in this.scene[j].person) {
+                            if (!this.scene[j].person[k].emotion)
+                                continue;
+                            let group = groupMap[this.scene[j].person[k].name];
+                            let emotion = this.scene[j].person[k].emotion;
+                            forEach(emotion, function(emotion){
+                                emit({group:group, emotion:emotion}, 1);
+                            });
+                        }
+                    }
+                }
+                
+                var reduce = function(key, values) {
+                    return Array.sum(values);
+                }
+                
+                db.collection('cmdb').mapReduce(map, reduce, {out:{inline: 1}, scope:{groupName:groupName}},
+                    function (err, result) {
+                        if (err) return console.log(err);
+                    let projection = [];
+                    projection = result.map(v => ({group4:v._id.emotion, group2:v._id.group, count:v.value}));
+                    projection.sort((v1,v2)=>v2.count-v1.count);
+                    res.render('count.ejs', {cms: projection, query:req.query});
+                });
             }
-            
-            db.collection('cmdb').mapReduce(map, reduce, {out:{ inline: 1 }},
-                function (err, result) {
-                    if (err) return console.log(err);
-                let projection = [];
-                projection = result.map(v => ({group4:v._id, count:v.value}));
-                projection.sort((v1,v2)=>v2.count-v1.count);
-                res.render('count.ejs', {cms: projection, query:req.query});
-            });
         }
         else if (req.query.group2 == "" || req.query.group3 == "" || req.query.group2 == req.query.group3) {
             let group = req.query.group2 == req.query.group3 ? 

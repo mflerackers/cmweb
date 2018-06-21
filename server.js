@@ -150,7 +150,9 @@ app.get('/count', function(req, res) {
                             continue;
                         let emotion = this.person[i].emotion;
                         forEach(emotion, function(emotion){
-                            emit({group:group, emotion:emotion}, 1);
+                            forEach(group, function(group){
+                                emit({group:group, emotion:emotion}, 1);
+                            });
                         });
                     }
                     for (var j in this.scene) {
@@ -160,7 +162,9 @@ app.get('/count', function(req, res) {
                             let group = groupMap[this.scene[j].person[k].name];
                             let emotion = this.scene[j].person[k].emotion;
                             forEach(emotion, function(emotion){
-                                emit({group:group, emotion:emotion}, 1);
+                                forEach(group, function(group){
+                                    emit({group:group, emotion:emotion}, 1);
+                                });
                             });
                         }
                     }
@@ -175,6 +179,63 @@ app.get('/count', function(req, res) {
                         if (err) return console.log(err);
                     let projection = [];
                     projection = result.map(v => ({group4:v._id.emotion, group2:v._id.group, count:v.value}));
+                    projection.sort((v1,v2)=>v2.count-v1.count);
+                    res.render('count.ejs', {cms: projection, query:req.query});
+                });
+            }
+            else {
+                var map = function() {
+                    let forEach = function(v, f) {
+                        if (Array.isArray(v))
+                            v.forEach(v=>f(v));
+                        else
+                            f(v);
+                    }
+                    let group2Map = {};
+                    let group3Map = {};
+                    for (var i in this.person) {
+                        let group2 = this.person[i][group2Name];
+                        let group3 = this.person[i][group3Name];
+                        group2Map[this.person[i].name] = group2;
+                        group3Map[this.person[i].name] = group3;
+                        if (!this.person[i].emotion)
+                            continue;
+                        let emotion = this.person[i].emotion;
+                        forEach(emotion, function(emotion){
+                            forEach(group2, function(group2){
+                                forEach(group3, function(group3){
+                                    emit({group2:group2, group3:group3, emotion:emotion}, 1);
+                                });
+                            });
+                        });
+                    }
+                    for (var j in this.scene) {
+                        for (var k in this.scene[j].person) {
+                            if (!this.scene[j].person[k].emotion)
+                                continue;
+                            let group2 = group2Map[this.scene[j].person[k].name];
+                            let group3 = group3Map[this.scene[j].person[k].name];
+                            let emotion = this.scene[j].person[k].emotion;
+                            forEach(emotion, function(emotion){
+                                forEach(group2, function(group2){
+                                    forEach(group3, function(group3){
+                                        emit({group2:group2, group3:group3, emotion:emotion}, 1);
+                                    });
+                                });
+                            });
+                        }
+                    }
+                }
+                
+                var reduce = function(key, values) {
+                    return Array.sum(values);
+                }
+                
+                db.collection('cmdb').mapReduce(map, reduce, {out:{inline: 1}, scope:{group2Name:req.query.group2,group3Name:req.query.group3}},
+                    function (err, result) {
+                        if (err) return console.log(err);
+                    let projection = [];
+                    projection = result.map(v => ({group4:v._id.emotion, group2:v._id.group2, group3:v._id.group3, count:v.value}));
                     projection.sort((v1,v2)=>v2.count-v1.count);
                     res.render('count.ejs', {cms: projection, query:req.query});
                 });

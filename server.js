@@ -85,7 +85,52 @@ app.get('/count', function(req, res) {
         }
     }
     else {
-        if (req.query.group2 == "" || req.query.group3 == "" || req.query.group2 == req.query.group3) {
+        if (req.query.group4) {
+            var map = function() {
+                for (var i in this.person) {
+                    if (!this.person[i].emotion)
+                        continue;
+                    let emotion = this.person[i].emotion;
+                    if (Array.isArray(emotion)) {
+                        emotion.forEach(function(v){
+                            emit(v, 1);
+                        });
+                    }
+                    else {
+                        emit(emotion, 1);
+                    }
+                }
+                for (var j in this.scene) {
+                    for (var k in this.scene[j].person) {
+                        if (!this.scene[j].person[k].emotion)
+                            continue;
+                        let emotion = this.scene[j].person[k].emotion;
+                        if (Array.isArray(emotion)) {
+                            emotion.forEach(function(v){
+                                emit(v, 1);
+                            });
+                        }
+                        else {
+                            emit(emotion, 1);
+                        }
+                    }
+                }
+            }
+            
+            var reduce = function(key, values) {
+                return Array.sum(values);
+            }
+            
+            db.collection('cmdb').mapReduce(map, reduce, {out:{ inline: 1 }},
+                function (err, result) {
+                    if (err) return console.log(err);
+                let projection = [];
+                projection = result.map(v => ({group4:v._id, count:v.value}));
+                projection.sort((v1,v2)=>v2.count-v1.count);
+                res.render('count.ejs', {cms: projection, query:req.query});
+            });
+        }
+        else if (req.query.group2 == "" || req.query.group3 == "" || req.query.group2 == req.query.group3) {
             let group = req.query.group2 == req.query.group3 ? 
                 req.query.group2 :
                 req.query.group2 + req.query.group3;

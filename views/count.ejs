@@ -24,6 +24,10 @@
         <option <% if (query.group3=="age") { %>selected<% } %>>age</option>
         <option <% if (query.group3=="gender") { %>selected<% } %>>gender</option>
         </select>
+        <select name="group4">
+        <option <% if (query.group4=="") { %>selected<% } %>></option>
+        <option <% if (query.group4=="emotion") { %>selected<% } %>>emotion</option>
+        </select>
         <button type="submit">Submit</button>
     </form>
     
@@ -32,6 +36,7 @@
         <li class="cm">
             <span><%= cms[i].group2 %></span>
             <span><%= cms[i].group3 %></span>
+            <span><%= cms[i].group4 %></span>
             <span><%= cms[i].group %></span>
             <span><%= cms[i].count %></span>
         </li>

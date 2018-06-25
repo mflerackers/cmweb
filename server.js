@@ -281,6 +281,215 @@ app.get('/count', function(req, res) {
     }
 })
 
+function getTotal(result, statistics={}) {
+    if (statistics.total)
+        return;
+    statistics.total = result.map(c => c.count).reduce((a,c) => a+c, 0);
+}
+
+function getAverage(result, statistics={}) {
+    if (statistics.average)
+        return;
+    getTotal(result, statistics);
+    statistics.average = statistics.total / result.length;
+}
+
+function getVariance(result, statistics={}) {
+    if (statistics.variance)
+        return;
+    getAverage(result, statistics);
+    let average = statistics.average;
+    statistics.variance = result.map(c => (c.count-average)**2).reduce((a,c) => a+c, 0) / (result.length-1);
+}
+
+function getStdev(result, statistics={}) {
+    if (statistics.stdev)
+        return;
+    getVariance(result, statistics);
+    statistics.stdev = Math.sqrt(statistics.variance);
+}
+
+function getStatistics(result, query) {
+    let statistics = {};
+    if (query.total) {
+        getTotal(result, statistics);
+    }
+    if (query.average) {
+        getAverage(result, statistics);
+    }
+    if (query.variance) {
+        getVariance(result, statistics);
+    }
+    if (query.stdev) {
+        getStdev(result, statistics); 
+    }
+    return statistics;
+}
+
+app.get('/countv2', function(req, res) {
+    let filters = req.query.filter ? req.query.filter.split(" ").filter(filter =>filter.indexOf(":") != -1) : [];
+    let groups = req.query.group ? req.query.group.split(" ").filter(group => group.length > 0) : [];
+
+    let fields = [...filters.map(f => f.split(":")[0]), ...groups];
+
+    if (groups.length <= 0) {
+        res.render('countv2.ejs', {cms: [], groups:[], statistics:{}});
+        return;
+    }
+
+    const complexities = {
+        "category": 1,
+        "place" : 1,
+        "product" : 1,
+        "product company": 1,
+        "gender": 2,
+        "age": 2,
+        "emotion" : 3
+    };
+
+    let complexity = groups.map(group => complexities[group]).reduce((a, c) => Math.max(c, a), 0);
+
+    if (complexity == 1) {
+        let projection = {};
+        groups.forEach(group => projection[group] = "$"+group);
+        let ops = [{$project:projection}];
+        if (filters.length > 0) {
+            let filter = filters.reduce((a,f) => {
+                [name, value] = f.split(":");
+                a[name] = value;
+                return a;
+            }, {});
+            ops.unshift({$match:filter});
+            fields.forEach(f => ops.unshift({$unwind:"$"+f}));
+        }
+        else
+            groups.forEach(group => ops.push({$unwind:"$"+group}));
+        ops.push({$sortByCount:{$mergeObjects:projection}});
+        db.collection('cmdb').aggregate(ops).toArray((err, result) => {
+            if (err) return console.log(err);
+            let statistics = getStatistics(result, req.query); // TODO: statistics contain unwanted data
+            if (req.query.display == "percentage") {
+                let total = result.map(c => c.count).reduce((a,c) => a+c)
+                result.forEach(v => v.count = v.count * 100 / total);
+            }
+            res.render('countv2.ejs', {cms: result, groups:groups, statistics:statistics});
+        });
+    }
+    else if (complexity == 2) {
+        let projection = {};
+        fields.forEach(field => {
+            if (complexities[field] == 1)
+                projection[field] = "$"+field;
+            else
+                projection[field] = "$person."+field;
+        });
+        let ops = [{$unwind:"$person"}]
+        ops.push({$project:projection});
+        fields.forEach(field => ops.push({$unwind:"$"+field}));
+        if (filters.length > 0) {
+            let filter = filters.reduce((a,f) => {
+                [name, value] = f.split(":");
+                a[name] = value;
+                return a;
+            }, {});
+            ops.push({$match:filter});
+        }
+        let sortGroup = {};
+        groups.forEach(group => sortGroup[group] = "$"+group);
+        ops.push({$sortByCount:{$mergeObjects:sortGroup}});
+        db.collection('cmdb').aggregate(ops).toArray((err, result) => {
+            if (err) return console.log(err);
+            let statistics = getStatistics(result, req.query);
+            if (req.query.display == "percentage") {
+                let total = result.map(c => c.count).reduce((a,c) => a+c, 0)
+                result.forEach(v => v.count = v.count * 100 / total);
+            }
+            res.render('countv2.ejs', {cms: result, groups:groups, statistics:statistics});
+        });
+    }
+    else if (complexity == 3) {
+        var map = function() {
+            let forEach = function(v, f) {
+                if (Array.isArray(v))
+                    v.forEach(v=>f(v));
+                else if(v)
+                    f(v);
+            }
+            let concat = function(to, from) {
+                if (Array.isArray(from))
+                    return to.concat(from);
+                else if (from)
+                    return to.concat([from]);
+                else
+                    return to;
+            }
+            let merge = function(to, from, fields) {
+                fields.forEach(f => {
+                    to[f] = concat(from[f], to[f]);
+                });
+            }
+
+            let row = {};
+
+            fields.forEach(f => {
+                if (complexities[f] == 1)
+                    row[f] = this[f];
+            });
+
+            let people = {};
+
+            for (var i in this.person) {
+                let person = this.person[i];
+                let personRow = Object.assign(row, {});
+                merge(personRow, person, fields);
+                people[person.name] = personRow;
+            }
+            for (var j in this.scene) {
+                for (var k in this.scene[j].person) {
+                    if (!this.scene[j].person[k].emotion)
+                        continue;
+                    forEach(this.scene[j].person[k].emotion, function(v) {
+                        emit(v, 1);
+                    });
+                }
+            }
+        }
+        
+        var reduce = function(key, values) {
+            return Array.sum(values);
+        }
+        
+        db.collection('cmdb').mapReduce(map, reduce, 
+            {
+                out:{ inline: 1 }, 
+                scope:{
+                    filters:filters, 
+                    groups:groups, 
+                    fields:fields,
+                    complexities:complexities
+                }
+            },
+            function (err, result) {
+                if (err) return console.log(err);
+            let projection = [];
+            projection = result.map(v => ({_id:{emotion:v._id}, count:v.value}));
+            projection.sort((v1,v2)=>v2.count-v1.count);
+            let statistics = getStatistics(projection, req.query);
+            if (req.query.display == "percentage") {
+                let total = result.map(c => c.count).reduce((a,c) => a+c, 0)
+                projection.forEach(v => v.count = v.count * 100 / total);
+            }
+            res.render('countv2.ejs', {
+                cms: projection, 
+                groups:groups, 
+                statistics:statistics
+            });
+        });
+    }
+    else
+        res.render('countv2.ejs', {cms: [], groups:[], statistics:{}});
+});
+
 app.post('/', (req, res) => {
     console.log(req.body);
     let query = {};

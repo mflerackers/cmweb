@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CMDB</title>
+    <style>
+        ul {
+            list-style-type: none;
+            padding-left: 0px;
+        }
+    </style>
+</head>
+<body>
+    <a href="/">index</a> <a href="/countv2?group=category">count</a>
+    <form id="form" method="get" action="">
+        <fieldset>
+            <legend>Filter</legend>
+            <select id="fname">
+                <option>category</option>
+                <option>place</option>
+                <option>product</option>
+                <option>product company</option>
+                <option>gender</option>
+                <option>age</option>
+                <option>emotion</option>
+            </select> is <input id="fvalue" type="text"/>
+            <button id="addFilter">+</button>
+            <ul id="filters">
+            </ul>
+            <input type="hidden" id="filter" name="filter"/>
+        </fieldset>
+        <fieldset>
+            <legend>Group</legend>
+            <select id="gname">
+                <option>category</option>
+                <option>place</option>
+                <option>product</option>
+                <option>product company</option>
+                <option>gender</option>
+                <option>age</option>
+                <option>emotion</option>
+            </select>
+            <button id="addGroup">+</button>
+            <ul id="groups">
+            </ul>
+            <input type="hidden" id="group" name="group"/>
+        </fieldset>
+        <fieldset>
+            <legend>Statistics</legend>
+            <div>
+                <label for="display">Display</label>
+                <select id="display" name="display">
+                    <option>count</option>
+                    <option>percentage</option>
+                </select>
+            </div>
+            <div>
+                <ul>
+                    <li><input type="checkbox" name="total" id="total"/><label for="total">total</label></li>
+                    <li><input type="checkbox" name="average" id="average"/><label for="average">average</label></li>
+                    <li><input type="checkbox" name="variance" id="variance"/><label for="variance">variance</label></li>
+                    <li><input type="checkbox" name="stdev" id="stdev"/><label for="stdev">stdev</label></li>
+                </ul>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Actions</legend>
+            <button id="query">Query</button>
+        </fieldset>
+    </form>
+    
+    <script>
+        function getUlString(id) {
+            let node = document.getElementById(id);
+            var children = Array.from(node.children);
+            return children.map(n => n.dataset.value).join(" ");
+        }
+        
+        function hasUlString(id, value) {
+            let node = document.getElementById(id);
+            var children = Array.from(node.children);
+            return children.map(n => n.dataset.value).some(v => v == value);
+        }
+        
+        function addFilter(name, value) {
+            if (value == "")
+            return;
+            let filter = name + ":" + value;
+            if (hasUlString("filters", filter))
+            return;
+            let filters = document.getElementById("filters");
+            let li = document.createElement("li");
+            let text = document.createTextNode(" "+name+" is "+value);
+            let button = document.createElement("button");
+            button.appendChild(document.createTextNode("-"));
+            button.addEventListener("click", function (event) {
+                button.parentElement.parentElement.removeChild(button.parentElement);
+                refreshFilter();
+            });
+            li.dataset.value = filter;
+            li.appendChild(button);
+            li.appendChild(text);
+            filters.appendChild(li);
+            refreshFilter();
+        }
+        
+        function refreshFilter() {
+            document.getElementById("filter").value = getUlString("filters");
+        }
+        
+        function addGroup(name) {
+            if (hasUlString("groups", name))
+            return;
+            let filters = document.getElementById("groups");
+            let li = document.createElement("li");
+            let text = document.createTextNode(" "+name);
+            let button = document.createElement("button");
+            button.appendChild(document.createTextNode("-"));
+            button.addEventListener("click", function (event) {
+                button.parentElement.parentElement.removeChild(button.parentElement);
+                refreshGroup();
+            });
+            li.dataset.value = name;
+            li.appendChild(button);
+            li.appendChild(text);
+            filters.appendChild(li);
+            refreshGroup();
+        }
+        
+        function refreshGroup() {
+            document.getElementById("group").value = getUlString("groups");
+        }
+        
+        document.addEventListener("DOMContentLoaded", function(event) {
+            document.getElementById("addFilter").addEventListener("click", function(event) {
+                let name = document.getElementById("fname").value;
+                let value = document.getElementById("fvalue").value;
+                addFilter(name, value);
+                event.preventDefault();
+            }, false);
+            document.getElementById("addGroup").addEventListener("click", function(event) {
+                let name = document.getElementById("gname").value;
+                addGroup(name);
+                event.preventDefault();
+            }, false);
+            
+            // Query string to form
+            let params = (new URL(document.location)).searchParams;
+            params.get("filter").split(" ").forEach(nv => {
+                if (nv.indexOf(":") == -1) return;
+                let [name, value] = nv.split(":");
+                addFilter(name, value);
+            });
+            params.get("group").split(" ").forEach(name => { if (name != "") addGroup(name); });
+            let displayValue = params.get("display");
+            var display = document.getElementById('display');
+            var options = Array.from(display.options);
+            options.some((option, index) => {
+                if (option.value == displayValue) {
+                    display.selectedIndex = index;
+                    return true;
+                }
+                return false;
+            });
+            if (params.has("total")) { document.getElementById("total").checked=true; }
+            if (params.has("average")) { document.getElementById("average").checked=true; }
+            if (params.has("variance")) { document.getElementById("variance").checked=true; }
+            if (params.has("stdev")) { document.getElementById("stdev").checked=true; }
+        });
+    </script>
+
+    <ul class="statistics">
+        <% for(name in statistics) {%>
+            <li class="statistic">
+                <span><%= name %></span> <span><%= statistics[name] %></span>
+            </li>
+        <% } %>
+    </ul>
+    
+    <ul class="cms">
+        <% for(var i=0; i<cms.length; i++) {%>
+        <li class="cm">
+            <% for(var j=0; j<groups.length; j++) {%>
+                <span><%= cms[i]._id[groups[j]] %>,</span>
+            <% } %>
+            <span><%= cms[i].count %></span>
+        </li>
+        <% } %>
+    </ul>
+    </body>
+    </html>

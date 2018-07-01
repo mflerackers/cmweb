@@ -409,23 +409,49 @@ app.get('/countv2', function(req, res) {
     }
     else if (complexity == 3) {
         var map = function() {
-            let forEach = function(v, f) {
+            const forEach = function(v, f) {
                 if (Array.isArray(v))
                     v.forEach(v=>f(v));
                 else if(v)
                     f(v);
             }
-            let concat = function(to, from) {
-                if (Array.isArray(from))
-                    return to.concat(from);
-                else if (from)
-                    return to.concat([from]);
-                else
-                    return to;
+            const clone = function(object) {
+                let clone = {};
+                Object.keys(object).forEach(k => {
+                    clone[k] = object[k];
+                });
+                return clone;
             }
-            let merge = function(to, from, fields) {
+            const unwind = function(objects, field) {
+                let array = [];
+                objects.forEach(o => {
+                    forEach(o[field], value => {
+                        let no = clone(o);
+                        no[field] = value;
+                        array.push(no);
+                    });
+                });
+                return array;
+            }
+            const concat = function(to, from) {
+                if (to) {
+                    if (Array.isArray(from) && Object.prototype.toString.call(from) !== "[object String]") {
+                        return to.concat(from);
+                    }
+                    else if (from) {
+                        return to.concat([from]);
+                    }
+                    else {
+                        return to;
+                    }
+                }
+                else {
+                    return from;
+                }
+            }
+            const merge = function(to, from, fields) {
                 fields.forEach(f => {
-                    to[f] = concat(from[f], to[f]);
+                    to[f] = from[f] ? from[f] : to[f];//concat(to[f], from[f]);
                 });
             }
 
@@ -443,14 +469,23 @@ app.get('/countv2', function(req, res) {
                 let personRow = Object.assign(row, {});
                 merge(personRow, person, fields);
                 people[person.name] = personRow;
+                if (!Object.keys(personRow).every(k => personRow[k] != undefined))
+                    continue;
+                let rows = [personRow];
+                fields.forEach(field => rows = unwind(rows, field));
+                rows.forEach(row => emit(row, 1));
             }
             for (var j in this.scene) {
                 for (var k in this.scene[j].person) {
-                    if (!this.scene[j].person[k].emotion)
+                    let personRow = people[this.scene[j].person[k].name];
+                    if (!personRow)
                         continue;
-                    forEach(this.scene[j].person[k].emotion, function(v) {
-                        emit(v, 1);
-                    });
+                        merge(personRow, this.scene[j].person[k], fields);
+                    if (!Object.keys(personRow).every(k => personRow[k] != undefined))
+                        continue;
+                    let rows = [personRow];
+                    fields.forEach(field => rows = unwind(rows, field));
+                    rows.forEach(row => emit(row, 1));
                 }
             }
         }
@@ -472,8 +507,9 @@ app.get('/countv2', function(req, res) {
             function (err, result) {
                 if (err) return console.log(err);
             let projection = [];
-            projection = result.map(v => ({_id:{emotion:v._id}, count:v.value}));
+            projection = result.map(v => ({_id:v._id, count:v.value}));
             projection.sort((v1,v2)=>v2.count-v1.count);
+            console.log(projection);
             let statistics = getStatistics(projection, req.query);
             if (req.query.display == "percentage") {
                 let total = result.map(c => c.count).reduce((a,c) => a+c, 0)

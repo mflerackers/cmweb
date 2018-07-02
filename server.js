@@ -409,19 +409,14 @@ app.get('/countv2', function(req, res) {
     }
     else if (complexity == 3) {
         var map = function() {
+
             const forEach = function(v, f) {
                 if (Array.isArray(v))
                     v.forEach(v=>f(v));
                 else if(v)
                     f(v);
             }
-            const clone = function(object) {
-                let clone = {};
-                Object.keys(object).forEach(k => {
-                    clone[k] = object[k];
-                });
-                return clone;
-            }
+
             const unwind = function(objects, field) {
                 let array = [];
                 objects.forEach(o => {
@@ -433,26 +428,62 @@ app.get('/countv2', function(req, res) {
                 });
                 return array;
             }
-            const concat = function(to, from) {
-                if (to) {
-                    if (Array.isArray(from) && Object.prototype.toString.call(from) !== "[object String]") {
-                        return to.concat(from);
-                    }
-                    else if (from) {
-                        return to.concat([from]);
+
+            const isArray = function(v) {
+                return Object.prototype.toString.call(v) === '[object Array]';
+            }
+            
+            const concat = function(v1, v2) {
+                if (isArray(v1)) {
+                    if (isArray(v2)) {
+                        return [...v1, ...v2];
                     }
                     else {
-                        return to;
+                        return [...v1, v2]; 
                     }
                 }
+                else if (isArray(v2)) {
+                    return [v1, ...v2]; 
+                }
                 else {
-                    return from;
+                    return [v1, v2]; 
                 }
             }
-            const merge = function(to, from, fields) {
-                fields.forEach(f => {
-                    to[f] = from[f] ? from[f] : to[f];//concat(to[f], from[f]);
+            
+            const mergeAll = function(obj1, obj2) {
+                let merged = {};
+                Object.entries(obj1).forEach(([k,v]) => {
+                    if (obj2[k]) {
+                        merged[k] = concat(v, obj2[k])
+                    }
+                    else {
+                        merged[k] = v;
+                    }
                 });
+                Object.entries(obj2).forEach(([k,v]) => {
+                    if (!obj1[k]) {
+                        merged[k] = v;
+                    }
+                });
+                return merged;
+            }
+
+            const merge = function(obj1, obj2, fields) {
+                let merged = {};
+                fields.forEach(k => {
+                    if (obj1[k]) {
+                        if (obj2[k]) {
+                            merged[k] = concat(obj1[k], obj2[k]);
+                        }
+                        else {
+                            merged[k] = obj1[k];
+                        }
+                    }
+                    else if (obj2[k]) {
+                        merged[k] = obj2[k];
+                    }
+                });
+                return merged;
             }
 
             let row = {};
@@ -466,28 +497,28 @@ app.get('/countv2', function(req, res) {
 
             for (var i in this.person) {
                 let person = this.person[i];
-                let personRow = Object.assign(row, {});
-                merge(personRow, person, fields);
+                let personRow = merge(row, person, fields);
                 people[person.name] = personRow;
-                if (!Object.keys(personRow).every(k => personRow[k] != undefined))
-                    continue;
-                let rows = [personRow];
-                fields.forEach(field => rows = unwind(rows, field));
-                rows.forEach(row => emit(row, 1));
             }
             for (var j in this.scene) {
                 for (var k in this.scene[j].person) {
                     let personRow = people[this.scene[j].person[k].name];
-                    if (!personRow)
-                        continue;
-                        merge(personRow, this.scene[j].person[k], fields);
-                    if (!Object.keys(personRow).every(k => personRow[k] != undefined))
-                        continue;
-                    let rows = [personRow];
-                    fields.forEach(field => rows = unwind(rows, field));
-                    rows.forEach(row => emit(row, 1));
+                    if (personRow) {
+                        people[this.scene[j].person[k].name] = merge(personRow, this.scene[j].person[k], fields);
+                    }
+                    else {
+                        people[this.scene[j].person[k].name] = merge(this.scene[j].person[k], {}, fields);
+                    }
                 }
             }
+
+            people.forEach(p => {
+                if (!fields.every(k => p[k] != undefined))
+                    return;
+                let rows = [personRow];
+                fields.forEach(field => rows = unwind(rows, field));
+                rows.forEach(row => emit(row, 1));
+            });
         }
         
         var reduce = function(key, values) {

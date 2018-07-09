@@ -372,7 +372,40 @@ app.get('/countv2', function(req, res) {
                 let total = result.map(c => c.count).reduce((a,c) => a+c)
                 result.forEach(v => v.count = v.count * 100 / total);
             }
-            res.render('countv2.ejs', {cms: result, groups:groups, statistics:statistics});
+            let labels = [];
+            let categories = [];
+            result.some(r => {
+                label = r._id[groups[0]];
+                if (labels.findIndex(l => l == label) == -1)
+                    labels.push(label);
+                return labels.length >= 10;
+            });
+            result.forEach(r => {
+                label = r._id[groups[1]];
+                if (categories.findIndex(l => l == label) == -1)
+                    categories.push(label);
+            });
+            let datasets = categories.map(_ => [...labels.map(_ => 0)]);
+            let group0, group1, index0, index1;
+            result.forEach(r => {
+                group0 = r._id[groups[0]];
+                group1 = r._id[groups[1]];
+                index0 = labels.findIndex(l => l == group0);
+                index1 = categories.findIndex(l => l == group1);
+                if (index0 > -1 && index1 > -1) {
+                    datasets[index1][index0] = r.count;
+                }
+            });
+            console.log(datasets)
+            res.render('countv2.ejs', {
+                cms: result,
+                groups:groups,
+                statistics:statistics,
+                labels:labels,
+                datasets:datasets.slice(0, 4),
+                categories:categories.slice(0, 4),
+                title:"Commercials"
+            });
         });
     }
     else if (complexity == 2) {
@@ -404,7 +437,40 @@ app.get('/countv2', function(req, res) {
                 let total = result.map(c => c.count).reduce((a,c) => a+c, 0)
                 result.forEach(v => v.count = v.count * 100 / total);
             }
-            res.render('countv2.ejs', {cms: result, groups:groups, statistics:statistics});
+            let labels = [];
+            let categories = [];
+            result.some(r => {
+                label = r._id[groups[0]];
+                if (labels.findIndex(l => l == label) == -1)
+                    labels.push(label);
+                return labels.length >= 10;
+            });
+            result.forEach(r => {
+                label = r._id[groups[1]];
+                if (categories.findIndex(l => l == label) == -1)
+                    categories.push(label);
+            });
+            let datasets = categories.map(_ => [...labels.map(_ => 0)]);
+            let group0, group1, index0, index1;
+            result.forEach(r => {
+                group0 = r._id[groups[0]];
+                group1 = r._id[groups[1]];
+                index0 = labels.findIndex(l => l == group0);
+                index1 = categories.findIndex(l => l == group1);
+                if (index0 > -1 && index1 > -1) {
+                    datasets[index1][index0] = r.count;
+                }
+            });
+            console.log(datasets)
+            res.render('countv2.ejs', {
+                cms: result, 
+                groups:groups, 
+                statistics:statistics,
+                labels:labels,
+                datasets:datasets.slice(0, 4),
+                categories:categories.slice(0, 4),
+                title:"People"
+            });
         });
     }
     else if (complexity == 3) {
@@ -450,24 +516,6 @@ app.get('/countv2', function(req, res) {
                 }
             }
             
-            const mergeAll = function(obj1, obj2) {
-                let merged = {};
-                Object.entries(obj1).forEach(([k,v]) => {
-                    if (obj2[k]) {
-                        merged[k] = concat(v, obj2[k])
-                    }
-                    else {
-                        merged[k] = v;
-                    }
-                });
-                Object.entries(obj2).forEach(([k,v]) => {
-                    if (!obj1[k]) {
-                        merged[k] = v;
-                    }
-                });
-                return merged;
-            }
-
             const merge = function(obj1, obj2, fields) {
                 let merged = {};
                 fields.forEach(k => {

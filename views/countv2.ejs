@@ -11,7 +11,10 @@
     </style>
 </head>
 <body>
-    <a href="/">index</a> <a href="/countv2?group=category">count</a>
+    <div>
+    <a href="/">index</a> <a href="/count?group=category">count</a> <a href="/countv2?group=category">count v2</a>
+    </div>
+    <div style="display:inline-block;">
     <form id="form" method="get" action="">
         <fieldset>
             <legend>Filter</legend>
@@ -68,6 +71,70 @@
             <button id="query">Query</button>
         </fieldset>
     </form>
+    </div>
+    <div style="display: inline-block;">
+        <canvas id="myChart" width="800" height="400"></canvas>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.min.js"></script>
+    <script>
+        const labels = [<%- labels.map(label => "'" + label + "'").join(",") %>];
+        const categories = [<%- categories.map(category => "\"" + category + "\"").join(",") %>];
+        let datasets = [<%= datasets.map(dataset => "[" + dataset.join(",") + "]") %>];
+
+        const backgroundColors = [
+            "rgba(255, 99, 132, 0.2)",
+            "rgba(255, 159, 64, 0.2)",
+            "rgba(255, 205, 86, 0.2)",
+            "rgba(75, 192, 192, 0.2)",
+            "rgba(54, 162, 235, 0.2)",
+            "rgba(153, 102, 255, 0.2)",
+            "rgba(201, 203, 207, 0.2)"];
+        const borderColors = [
+            "rgb(255, 99, 132)",
+            "rgb(255, 159, 64)",
+            "rgb(255, 205, 86)",
+            "rgb(75, 192, 192)",
+            "rgb(54, 162, 235)",
+            "rgb(153, 102, 255)",
+            "rgb(201, 203, 207)"];
+
+        console.log(datasets);
+        
+        datasets = datasets.map((data, i) => ({
+            label:categories[i],
+            data:data, 
+            backgroundColor: backgroundColors[i],
+            borderColor: borderColors[i],
+            borderWidth:1
+        }));
+
+        console.log(datasets);
+
+        var myBarChart = new Chart("myChart", {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                title: {
+                    display: true,
+                    text: "<%= title %>"
+                },
+                scales: {
+                    xAxes: [{
+                        stacked: true
+                    }],
+                    yAxes: [{
+                        stacked: true,
+                        ticks: {
+                            beginAtZero:true
+                        }
+                    }]
+                }
+            }
+        });
+    </script>
     
     <script>
         function getUlString(id) {

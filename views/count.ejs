@@ -5,7 +5,7 @@
     <title>CMDB</title>
 </head>
 <body>
-    <a href="/">index</a> <a href="/count?group=category">count</a>
+    <a href="/">index</a> <a href="/count?group=category">count</a> <a href="/countv2?group=category">count v2</a>
     <form action="/count" method="GET">
         <select name="group">
         <option <% if (query.group=="") { %>selected<% } %>></option>

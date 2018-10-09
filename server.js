@@ -483,6 +483,14 @@ app.get('/countv2', function(req, res) {
                     f(v);
             }
 
+            const clone = function(object) {
+                let clone = {};
+                Object.keys(object).forEach(k => {
+                    clone[k] = object[k];
+                });
+                return clone;
+            }
+
             const unwind = function(objects, field) {
                 let array = [];
                 objects.forEach(o => {
@@ -560,13 +568,14 @@ app.get('/countv2', function(req, res) {
                 }
             }
 
-            people.forEach(p => {
+            for (var p in people) {
+                p = people[p];
                 if (!fields.every(k => p[k] != undefined))
-                    return;
-                let rows = [personRow];
+                    continue;
+                let rows = [p];
                 fields.forEach(field => rows = unwind(rows, field));
                 rows.forEach(row => emit(row, 1));
-            });
+            }
         }
         
         var reduce = function(key, values) {
@@ -597,7 +606,11 @@ app.get('/countv2', function(req, res) {
             res.render('countv2.ejs', {
                 cms: projection, 
                 groups:groups, 
-                statistics:statistics
+                statistics:statistics,
+                labels:[],
+                datasets:[],
+                categories:[],
+                title:"People"
             });
         });
     }

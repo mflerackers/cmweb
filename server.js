@@ -333,7 +333,7 @@ app.get('/countv2', function(req, res) {
     let fields = [...filters.map(f => f.split(":")[0]), ...groups];
 
     if (groups.length <= 0) {
-        res.render('countv2.ejs', {cms: [], groups:[], statistics:{}});
+        res.render('countv2.ejs', {cms: [], groups:[], statistics:{}, labels:false});
         return;
     }
 
@@ -597,12 +597,13 @@ app.get('/countv2', function(req, res) {
             res.render('countv2.ejs', {
                 cms: projection, 
                 groups:groups, 
-                statistics:statistics
+                statistics:statistics,
+                labels:false
             });
         });
     }
     else
-        res.render('countv2.ejs', {cms: [], groups:[], statistics:{}});
+        res.render('countv2.ejs', {cms: [], groups:[], statistics:{}, labels:false});
 });
 
 app.post('/', (req, res) => {

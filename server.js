@@ -3,28 +3,30 @@ const bodyParser= require('body-parser')
 const mongodb = require('mongodb');
 const app = express();
 
+require('dotenv').config();
+
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 
 var db
 
-mongodb.connect('mongodb://localhost:27017', (err, client) => {
+mongodb.connect(`mongodb+srv://${process.env.MONGOUSER}:${process.env.MONGOPASSWORD}@${process.env.SERVER}/test?retryWrites=true&w=majority`, (err, client) => {
   if (err) return console.log(err)
-  db = client.db('cmdb') // whatever your database name is
-  app.listen(3000, () => {
-    console.log('listening on 3000')
+  db = client.db('cmweb')
+  app.listen(process.env.PORT, () => {
+    console.log(`listening on ${process.env.PORT}`)
   })
 })
 
 app.get('/', function(req, res) {
-    db.collection('cmdb').find().toArray((err, result) => {
+    db.collection('cmweb').find().toArray((err, result) => {
         if (err) return console.log(err);
         res.render('index.ejs', {cms: result, query:{year:"", year_to:""}});
     });
 })
 
 app.get('/cm/:name', function(req, res) {
-    db.collection('cmdb').findOne({name: req.params.name}, (err, result) => {
+    db.collection('cmweb').findOne({name: req.params.name}, (err, result) => {
         if (err) return console.log(err);
         res.send(result);
     });
@@ -33,7 +35,7 @@ app.get('/cm/:name', function(req, res) {
 app.get('/count', function(req, res) {
     if (req.query.group) {
         if (req.query.group2 == "" && req.query.group3 == "") {
-            db.collection('cmdb').aggregate([
+            db.collection('cmweb').aggregate([
                 {$project:{_id:1,group:"$"+req.query.group}},
                 {$unwind:"$group"},
                 {$sortByCount:"$group"},
@@ -45,7 +47,7 @@ app.get('/count', function(req, res) {
         }
         else if (req.query.group2 == "" || req.query.group3 == "") {
             let group2 = req.query.group2 + req.query.group3;
-            db.collection('cmdb').aggregate([
+            db.collection('cmweb').aggregate([
                 {$project:{_id:1,group2:"$person."+group2,group:"$"+req.query.group}},
                 {$unwind:"$group2"},
                 {$unwind:"$group2"},
@@ -59,7 +61,7 @@ app.get('/count', function(req, res) {
             });
         }
         else {
-            db.collection('cmdb').aggregate([
+            db.collection('cmweb').aggregate([
                 {$unwind:"$person"},
                 {$project: {
                     _id:"$person.name",
@@ -122,7 +124,7 @@ app.get('/count', function(req, res) {
                     return Array.sum(values);
                 }
                 
-                db.collection('cmdb').mapReduce(map, reduce, {out:{ inline: 1 }},
+                db.collection('cmweb').mapReduce(map, reduce, {out:{ inline: 1 }},
                     function (err, result) {
                         if (err) return console.log(err);
                     let projection = [];
@@ -174,7 +176,7 @@ app.get('/count', function(req, res) {
                     return Array.sum(values);
                 }
                 
-                db.collection('cmdb').mapReduce(map, reduce, {out:{inline: 1}, scope:{groupName:groupName}},
+                db.collection('cmweb').mapReduce(map, reduce, {out:{inline: 1}, scope:{groupName:groupName}},
                     function (err, result) {
                         if (err) return console.log(err);
                     let projection = [];
@@ -231,7 +233,7 @@ app.get('/count', function(req, res) {
                     return Array.sum(values);
                 }
                 
-                db.collection('cmdb').mapReduce(map, reduce, {out:{inline: 1}, scope:{group2Name:req.query.group2,group3Name:req.query.group3}},
+                db.collection('cmweb').mapReduce(map, reduce, {out:{inline: 1}, scope:{group2Name:req.query.group2,group3Name:req.query.group3}},
                     function (err, result) {
                         if (err) return console.log(err);
                     let projection = [];
@@ -245,7 +247,7 @@ app.get('/count', function(req, res) {
             let group = req.query.group2 == req.query.group3 ? 
                 req.query.group2 :
                 req.query.group2 + req.query.group3;
-            db.collection('cmdb').aggregate([
+            db.collection('cmweb').aggregate([
                 {$unwind:"$person"},
                 {$project: {
                     _id:"$person.name", 
@@ -261,7 +263,7 @@ app.get('/count', function(req, res) {
             });
         }
         else {
-            db.collection('cmdb').aggregate([
+            db.collection('cmweb').aggregate([
                 {$unwind:"$person"},
                 {$project: {
                     _id:"$person.name", 
@@ -365,7 +367,7 @@ app.get('/countv2', function(req, res) {
         else
             groups.forEach(group => ops.push({$unwind:"$"+group}));
         ops.push({$sortByCount:{$mergeObjects:projection}});
-        db.collection('cmdb').aggregate(ops).toArray((err, result) => {
+        db.collection('cmweb').aggregate(ops).toArray((err, result) => {
             if (err) return console.log(err);
             let statistics = getStatistics(result, req.query); // TODO: statistics contain unwanted data
             if (req.query.display == "percentage") {
@@ -430,7 +432,7 @@ app.get('/countv2', function(req, res) {
         let sortGroup = {};
         groups.forEach(group => sortGroup[group] = "$"+group);
         ops.push({$sortByCount:{$mergeObjects:sortGroup}});
-        db.collection('cmdb').aggregate(ops).toArray((err, result) => {
+        db.collection('cmweb').aggregate(ops).toArray((err, result) => {
             if (err) return console.log(err);
             let statistics = getStatistics(result, req.query);
             if (req.query.display == "percentage") {
@@ -582,7 +584,7 @@ app.get('/countv2', function(req, res) {
             return Array.sum(values);
         }
         
-        db.collection('cmdb').mapReduce(map, reduce, 
+        db.collection('cmweb').mapReduce(map, reduce, 
             {
                 out:{ inline: 1 }, 
                 scope:{
@@ -628,7 +630,7 @@ app.post('/', (req, res) => {
             query.year = Number(req.body.year);
     }
     console.log(query);
-    db.collection('cmdb').find(query).toArray((err, result) => {
+    db.collection('cmweb').find(query).toArray((err, result) => {
         if (err) return console.log(err);
         res.render('index.ejs', {cms: result, query:req.body});
     });
